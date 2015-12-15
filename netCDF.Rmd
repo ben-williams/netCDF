@@ -1,0 +1,57 @@
+---
+title: "netCDF"
+author: "Ben Williams"
+date: "December 15, 2015"
+output: html_document
+---
+
+Brief example of working with a netCDF file  
+```{r}
+library(ncdf)
+library(ggplot2)
+theme_set(theme_bw(base_size=18)+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()))
+library(reshape2)
+```
+
+Import file  
+```{r}
+modis <- open.ncdf("MODIS_Chl_monthly.nc")
+print(modis)
+```
+
+Pull out the variables  
+```{r}
+get.var.ncdf(modis,varid='longitude')->lon
+get.var.ncdf(modis,varid='latitude')->lat
+```
+
+Adjust longitude to something I can use  
+```{r}
+lon<- lon -360
+``` 
+
+Set the Unix time to something understandable
+```{r}
+as.Date(as.POSIXct(modis$dim$time$vals, origin="1970-01-01")) -> time
+```
+
+Create a data.frame - (if your file has multiple variables this will pull all of them out):  
+```{r}
+out = expand.grid(latitude=lat,longitude=lon)
+
+vars = names(modis$var) #get a list of the data in the netcdf file
+for (voi in vars) { cat(voi,'...\n') #cycle through each of the variables
+     tdata = get.var.ncdf(modis,voi) #read in the data array for the variable of interses
+     for(ii in 1:length(time)) { out[,paste(time[ii])]  = as.vector(tdata[,,ii]) } #append the data to out
+}
+```
+
+Melt the dataframe 
+outer <- melt(out, id=c('longitude','latitude'))
+
+Ditch the NAs to make a smaller file
+```{r}
+outer<-na.omit(outer)
+```
+
+Now subset etc. as you see fit.
